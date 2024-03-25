@@ -4,7 +4,6 @@ import { merkleRoot } from "./merkleRoot";
 import { txSerializer } from "../encoding/serializer";
 import { ZEROS, generateCoinbaseTransaction } from "./coinbaseTransaction";
 import { totalFee } from "./fee";
-import { isClassStaticBlockDeclaration } from "typescript";
 
 export const mine = (
   txs: Transaction[]
@@ -33,11 +32,14 @@ export const mine = (
 
   const prevBlockHash =
     "0000ffff00000000000000000000000000000000000000000000000000000000"; //make it the same as the difficulty
+
   const merkleRootHash = merkleRoot(
     [coinbaseTransaction, ...txs].map((tx) =>
-      reversify(sha256(sha256(txSerializer(tx).serializedTx)))
+      sha256(sha256(txSerializer(tx).serializedTx))
     )
   );
+
+  console.log(merkleRootHash);
 
   const time = Buffer.alloc(4);
   time.writeUint32LE(Math.floor(Date.now() / 1000));
