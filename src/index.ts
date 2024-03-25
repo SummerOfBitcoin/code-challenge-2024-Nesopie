@@ -57,4 +57,5 @@ import * as path from "path";
     );
     fs.appendFileSync(outputFile, "\n");
   }
+  console.log(fs.readFileSync(outputFile, "utf8").split("\n").length);
 })();
