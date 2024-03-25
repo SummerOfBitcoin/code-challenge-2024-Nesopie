@@ -21,9 +21,7 @@ export const mine = (
   const witnessMerkleRootHash = reversify(
     merkleRoot([
       ZEROS, //zeros are for the coinbase transaction
-      ...txs.map((tx) =>
-        reversify(sha256(sha256(txSerializer(tx).serializedWTx)))
-      ),
+      ...txs.map((tx) => sha256(sha256(txSerializer(tx).serializedWTx))),
     ])
   );
   const commitmentHash = sha256(sha256(witnessMerkleRootHash + ZEROS));
