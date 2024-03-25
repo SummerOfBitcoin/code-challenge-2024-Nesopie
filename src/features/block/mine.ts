@@ -16,14 +16,11 @@ export const mine = (
     "0000ffff00000000000000000000000000000000000000000000000000000000";
   const version = Buffer.alloc(4);
   version.writeInt32LE(4);
-  //make it the same as the difficulty
 
-  const witnessMerkleRootHash = reversify(
-    merkleRoot([
-      ZEROS, //zeros are for the coinbase transaction
-      ...txs.map((tx) => sha256(sha256(txSerializer(tx).serializedWTx))),
-    ])
-  );
+  const witnessMerkleRootHash = merkleRoot([
+    ZEROS, //zeros are for the coinbase transaction
+    ...txs.map((tx) => sha256(sha256(txSerializer(tx).serializedWTx))),
+  ]);
   const commitmentHash = sha256(sha256(witnessMerkleRootHash + ZEROS));
   const fees = totalFee(txs);
   const coinbaseTransaction = generateCoinbaseTransaction(fees, commitmentHash);
