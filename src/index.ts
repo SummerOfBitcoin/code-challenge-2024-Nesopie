@@ -9,6 +9,7 @@ import { txSerializer, txWeight } from "./features/encoding/serializer";
 import { feePerByte } from "./features/block/fee";
 import { mine } from "./features/block/mine";
 import * as path from "path";
+import * as bitcoin from "bitcoinjs-lib";
 
 (async () => {
   const files = fs.readdirSync("./mempool");
@@ -37,6 +38,10 @@ import * as path from "path";
   }
 
   const { serializedBlock, blockHash, coinbaseTransaction } = mine(txs);
+
+  const ct = bitcoin.Transaction.fromHex(
+    txSerializer(coinbaseTransaction).serializedWTx
+  );
 
   fs.writeFileSync(outputFile, serializedBlock);
   fs.appendFileSync(outputFile, "\n");

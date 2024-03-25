@@ -93,11 +93,7 @@ export const txSerializer = (tx: Transaction) => {
 
   return {
     serializedTx,
-    serializedWTx: isWitness
-      ? tx.vin[0].txid === ZEROS
-        ? ZEROS
-        : serializedWTx
-      : serializedTx,
+    serializedWTx: isWitness ? serializedWTx : serializedTx,
   };
 };
 
