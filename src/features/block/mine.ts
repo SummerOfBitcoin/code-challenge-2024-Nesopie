@@ -43,16 +43,18 @@ export const mine = (
 
   const time = Buffer.alloc(4);
   time.writeUint32LE(Math.floor(Date.now() / 1000));
-  const nbits = "1f00ffff";
+  // const nbits = "1f00ffff";
+  const nbits = Buffer.alloc(4);
+  nbits.writeUint32LE(0x1f00ffff);
 
   for (let nonce = 0; nonce < 0xffffffff; nonce++) {
     const nonceBuf = Buffer.alloc(4);
     nonceBuf.writeUInt32LE(nonce);
     const serializedBlock = `${version.toString(
       "hex"
-    )}${prevBlockHash}${merkleRootHash}${time.toString(
+    )}${prevBlockHash}${merkleRootHash}${time.toString("hex")}${nbits.toString(
       "hex"
-    )}${nbits}${nonceBuf.toString("hex")}`;
+    )}${nonceBuf.toString("hex")}`;
 
     // console.log(serializedBlock);
     const blockHash = reversify(sha256(sha256(serializedBlock)));
