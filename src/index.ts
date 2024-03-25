@@ -15,7 +15,7 @@ import * as path from "path";
   const outputFile = path.join(__dirname, "..", "output.txt");
   let mempool: Transaction[] = [];
 
-  const blockSize = 2 * 1e6;
+  const blockSize = 4 * 1e6;
 
   for (const file of files) {
     const tx = JSON.parse(fs.readFileSync(`./mempool/${file}`, "utf8"));

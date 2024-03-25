@@ -58,6 +58,7 @@ export const txSerializer = (tx: Transaction) => {
   totalWeight += weight(version, 4);
 
   serializedWTx += "0001";
+  let witnessWeights = 2;
 
   const numInputs = compactSize(BigInt(tx.vin.length));
   serializedTx += numInputs.toString("hex");
@@ -84,19 +85,23 @@ export const txSerializer = (tx: Transaction) => {
   for (let i = 0; i < tx.vin.length; i++) {
     if (!tx.vin[i].witness || tx.vin[i].witness.length === 0) {
       serializedWTx += compactSize(BigInt(0)).toString("hex");
+      witnessWeights += weight(compactSize(BigInt(0)), 1);
     } else {
       isWitness = true;
       serializedWTx += compactSize(BigInt(tx.vin[i].witness.length)).toString(
         "hex"
       );
-      totalWeight += weight(compactSize(BigInt(tx.vin[i].witness.length)), 1);
+      witnessWeights += weight(
+        compactSize(BigInt(tx.vin[i].witness.length)),
+        1
+      );
       for (const witness of tx.vin[i].witness) {
         serializedWTx += compactSize(BigInt(witness.length / 2)).toString(
           "hex"
         );
-        totalWeight += weight(compactSize(BigInt(witness.length / 2)), 1);
+        witnessWeights += weight(compactSize(BigInt(witness.length / 2)), 1);
         serializedWTx += witness;
-        totalWeight += weight(witness, 1);
+        witnessWeights += weight(witness, 1);
       }
     }
   }
@@ -107,7 +112,7 @@ export const txSerializer = (tx: Transaction) => {
   serializedWTx += locktime.toString("hex");
   totalWeight += weight(locktime, 4);
 
-  if (isWitness) totalWeight += 2; //for marker and flag
+  if (isWitness) totalWeight += witnessWeights; //for marker and flag
 
   return {
     serializedTx,
