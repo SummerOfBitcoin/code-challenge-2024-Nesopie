@@ -41,6 +41,11 @@ import * as path from "path";
   fs.appendFileSync(outputFile, "\n");
   fs.appendFileSync(outputFile, txSerializer(coinbaseTransaction).serializedTx);
   fs.appendFileSync(outputFile, "\n");
+  fs.appendFileSync(
+    outputFile,
+    reversify(sha256(sha256(txSerializer(coinbaseTransaction).serializedTx)))
+  );
+  fs.appendFileSync(outputFile, "\n");
   for (const tx of txs) {
     fs.appendFileSync(
       outputFile,
