@@ -17,9 +17,7 @@ export const mine = (
     "0000ffff00000000000000000000000000000000000000000000000000000000";
   const version = Buffer.alloc(4);
   version.writeInt32LE(4);
-
-  const prevBlockHeader =
-    "0000ffff00000000000000000000000000000000000000000000000000000000"; //make it the same as the difficulty
+  //make it the same as the difficulty
 
   const witnessMerkleRootHash = reversify(
     merkleRoot([
@@ -33,7 +31,8 @@ export const mine = (
   const fees = totalFee(txs);
   const coinbaseTransaction = generateCoinbaseTransaction(fees, commitmentHash);
 
-  const prevBlockHash = reversify(sha256(sha256(prevBlockHeader)));
+  const prevBlockHash =
+    "0000ffff00000000000000000000000000000000000000000000000000000000"; //make it the same as the difficulty
   const merkleRootHash = reversify(
     merkleRoot(
       [coinbaseTransaction, ...txs].map((tx) =>
