@@ -35,9 +35,7 @@ export const mine = (
     "0000ffff00000000000000000000000000000000000000000000000000000000"; //make it the same as the difficulty
   const merkleRootHash = reversify(
     merkleRoot(
-      [coinbaseTransaction, ...txs].map((tx) =>
-        reversify(sha256(sha256(txSerializer(tx).serializedTx)))
-      )
+      txs.map((tx) => reversify(sha256(sha256(txSerializer(tx).serializedTx))))
     )
   );
 
