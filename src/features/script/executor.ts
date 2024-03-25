@@ -138,7 +138,6 @@ const testExecutor = () => {
     .createHash("sha256")
     .update(Buffer.from(script, "hex"))
     .digest("hex");
-  console.log(sha256);
 };
 
 testExecutor();

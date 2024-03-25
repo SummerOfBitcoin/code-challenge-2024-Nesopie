@@ -39,8 +39,6 @@ export const mine = (
     )
   );
 
-  console.log(merkleRootHash);
-
   const time = Buffer.alloc(4);
   time.writeUint32LE(Math.floor(Date.now() / 1000));
   // const nbits = "1f00ffff";

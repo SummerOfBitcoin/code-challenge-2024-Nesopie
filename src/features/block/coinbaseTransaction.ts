@@ -17,6 +17,9 @@ const coinbaseTemplate = {
       prevout: null,
       scriptsig: "03233708",
       scriptsig_asm: "OP_PUSHBYTES_3 233708",
+      witness: [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+      ],
     },
   ],
   vout: [
