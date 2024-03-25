@@ -54,7 +54,6 @@ export const mine = (
       "hex"
     )}${nonceBuf.toString("hex")}`;
 
-    // console.log(serializedBlock);
     const blockHash = reversify(sha256(sha256(serializedBlock)));
     if (
       Buffer.from(difficulty, "hex").compare(Buffer.from(blockHash, "hex")) < 0
