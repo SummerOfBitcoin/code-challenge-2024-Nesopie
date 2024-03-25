@@ -98,7 +98,7 @@ export const txSerializer = (tx: Transaction) => {
 };
 
 export const txWeight = (tx: Transaction) => {
-  return txSerializer(tx).serializedTx.length / 2; // divide by two cuz 2 hex chars are 1 byte and 1e6 as you cconsider it in mb
+  return txSerializer(tx).serializedWTx.length / 2; // divide by two cuz 2 hex chars are 1 byte and 1e6 as you cconsider it in mb
 };
 
 const txForSigning = (tx: Transaction, input: number) => {
