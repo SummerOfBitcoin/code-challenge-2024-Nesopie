@@ -33,10 +33,8 @@ export const mine = (
 
   const prevBlockHash =
     "0000ffff00000000000000000000000000000000000000000000000000000000"; //make it the same as the difficulty
-  const merkleRootHash = reversify(
-    merkleRoot(
-      txs.map((tx) => reversify(sha256(sha256(txSerializer(tx).serializedTx))))
-    )
+  const merkleRootHash = merkleRoot(
+    txs.map((tx) => reversify(sha256(sha256(txSerializer(tx).serializedTx))))
   );
 
   const time = Buffer.alloc(4);
