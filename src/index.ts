@@ -37,9 +37,13 @@ import * as path from "path";
   }
 
   const { serializedBlock, blockHash, coinbaseTransaction } = mine(txs);
+
   fs.writeFileSync(outputFile, serializedBlock);
   fs.appendFileSync(outputFile, "\n");
-  fs.appendFileSync(outputFile, txSerializer(coinbaseTransaction).serializedTx);
+  fs.appendFileSync(
+    outputFile,
+    txSerializer(coinbaseTransaction).serializedWTx
+  );
   fs.appendFileSync(outputFile, "\n");
   fs.appendFileSync(
     outputFile,
