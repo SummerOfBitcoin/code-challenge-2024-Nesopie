@@ -36,6 +36,9 @@ import * as path from "path";
     blockWeight += txWeight(tx);
   }
 
+  try {
+    fs.unlinkSync(outputFile);
+  } catch (err) {}
   const { serializedBlock, blockHash, coinbaseTransaction } = mine(txs);
 
   fs.writeFileSync(outputFile, serializedBlock);
