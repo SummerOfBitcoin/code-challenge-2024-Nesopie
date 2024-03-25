@@ -19,7 +19,7 @@ export const mine = (
   version.writeInt32LE(4);
 
   const prevBlockHeader =
-    "0000000000000000000000000000000000000000000000000000000000000000"; //1 greater than the difficulty
+    "0000ffff00000000000000000000000000000000000000000000000000000000"; //make it the same as the difficulty
 
   const witnessMerkleRootHash = reversify(
     merkleRoot([
