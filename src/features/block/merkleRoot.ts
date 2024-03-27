@@ -1,6 +1,4 @@
-import { Transaction } from "../../types";
-import { reversify, sha256 } from "../../utils";
-import { txSerializer } from "../encoding/serializer";
+import { sha256 } from "../../utils";
 
 export const merkleRoot = (txs: string[]) => {
   let curr = txs;

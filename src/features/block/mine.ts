@@ -34,7 +34,7 @@ export const mine = (
   const prevBlockHash = DIFFICULTY; //make it the same as the difficulty
 
   const merkleRootHash = merkleRoot(
-    [coinbaseTransaction, ...txs].map((tx) => tx.txid)
+    [coinbaseTransaction, ...txs].map((tx) => reversify(tx.txid))
   );
 
   const time = Buffer.alloc(4);
