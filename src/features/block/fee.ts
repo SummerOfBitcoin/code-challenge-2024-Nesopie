@@ -1,5 +1,4 @@
-import { Transaction } from "../../types";
-import { txWeight } from "../encoding/serializer";
+import { Transaction } from "../transaction";
 
 export const totalFee = (txs: Transaction[]) => {
   let inputValues = 0;
@@ -7,6 +6,7 @@ export const totalFee = (txs: Transaction[]) => {
 
   for (const tx of txs) {
     for (const input of tx.vin) {
+      if (!input.prevout) continue;
       inputValues += input.prevout.value;
     }
     for (const output of tx.vout) {
@@ -20,6 +20,7 @@ export const totalFee = (txs: Transaction[]) => {
 export const feePerByte = (tx: Transaction) => {
   let fee = 0;
   for (const input of tx.vin) {
+    if (!input.prevout) continue;
     fee += input.prevout.value;
   }
 
@@ -27,5 +28,5 @@ export const feePerByte = (tx: Transaction) => {
     fee -= output.value;
   }
 
-  return fee / txWeight(tx);
+  return fee / tx.weight;
 };
