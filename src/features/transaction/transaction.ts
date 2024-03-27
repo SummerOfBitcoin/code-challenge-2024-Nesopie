@@ -18,7 +18,7 @@ export class Transaction {
   locktime: number;
   vin: Input[] = [];
   vout: Output[] = [];
-  isWitnessTx = false;
+  isSegwit = false;
 
   constructor(version: number, locktime: number) {
     this.version = version;
@@ -27,7 +27,7 @@ export class Transaction {
 
   addInput(input: Input) {
     this.resetState();
-    if (input.witness && input.witness.length > 0) this.isWitnessTx = true;
+    if (input.witness && input.witness.length > 0) this.isSegwit = true;
     this.vin.push(input);
   }
 
@@ -84,7 +84,7 @@ export class Transaction {
   }
 
   get wtxid() {
-    if (!this.isWitnessTx) return this.txid;
+    if (!this.isSegwit) return this.txid;
     if (this._wtxid) return this._wtxid;
     const wtxid = reversify(sha256(sha256(this.serializedWTx)));
     this._wtxid = wtxid;
@@ -93,7 +93,7 @@ export class Transaction {
 
   get weight() {
     if (this._weight) return this._weight;
-    const weight = calculateWeight(this);
+    const weight = calculateWeight(this, this.isSegwit);
     this._weight = weight;
     return this._weight;
   }
