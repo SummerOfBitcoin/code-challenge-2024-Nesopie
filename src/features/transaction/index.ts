@@ -1,4 +1,4 @@
-export * from "./transaction";
-export * from "./input";
-export * from "./output";
+export * from "./components/transaction";
+export * from "./components/input";
+export * from "./components/output";
 export * from "./types";
