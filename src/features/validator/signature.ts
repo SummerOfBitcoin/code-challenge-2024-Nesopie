@@ -1,6 +1,6 @@
 import { SigHash, TransactionType } from "../../types";
 import { Transaction } from "../transaction";
-import { hash256, sha256 } from "../../utils";
+import { hash160, sha256 } from "../../utils";
 import * as asn1js from "asn1js";
 
 import { ECPairFactory } from "ecpair";
@@ -66,7 +66,7 @@ export const signatureValidator = (tx: Transaction): boolean => {
         if (!input.witness) return false;
         derEncodedSignature = input.witness[0];
         pubkey = input.witness[1];
-        const pubkeyHash = hash256(pubkey);
+        const pubkeyHash = hash160(pubkey);
         const pubkeyInScript = input.prevout.scriptpubkey.slice(4);
 
         if (pubkeyHash !== pubkeyInScript) return false;
