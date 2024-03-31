@@ -8,10 +8,8 @@ export enum TransactionType {
 }
 
 export enum SigHash {
-  ALL = "01", //all inputs and outputs
-  NONE = "02", //all inputs and no output
-  SINGLE = "03", //all inputs and output with the same index
-  ALL_ANYONECANPAY = "81", //own input and anyone can pay
-  NONE_ANYONECANPAY = "82", //own input and no output
-  SINGLE_ANYONECANPAY = "83", //own input and output with the same index
+  ALL = 0x01, //all inputs and outputs
+  NONE = 0x02, //all inputs and no output
+  SINGLE = 0x03, //all inputs and output with the same index
+  ANYONE_CAN_PAY = 0x80,
 }

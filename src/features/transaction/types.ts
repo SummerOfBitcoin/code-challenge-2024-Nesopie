@@ -1,3 +1,5 @@
+import { TransactionType } from "../../types";
+
 export type Tx = {
   version: number;
   locktime: number;

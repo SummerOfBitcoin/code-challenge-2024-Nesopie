@@ -5,7 +5,7 @@ export const getNextNBytes = (str: string, n: number): [string, string] => {
 };
 
 export const parseHex = (str: string) => {
-  return parseInt(str, 10);
+  return parseInt(str, 16);
 };
 
 export const parseNumber = (number: string) => {

@@ -1,7 +1,9 @@
+import { Transaction } from "../transaction";
 import { IStack } from "../../interfaces/store";
+import { executor } from "./executor";
 
 export class Stack<T> implements IStack<T> {
-  private stack: T[] = [];
+  stack: T[] = [];
 
   push(key: T): void {
     this.stack.push(key);
@@ -17,28 +19,43 @@ export class Stack<T> implements IStack<T> {
 }
 
 export class ScriptStack extends Stack<string> {
-  private scriptSigAsm: string;
-  private scriptPubKeyAsm: string;
   private executionStates: boolean[] = [true];
+  tx: Transaction;
+  index: number;
 
-  constructor(scriptSigAsm: string, scriptPubKeyAsm: string) {
+  constructor(tx: Transaction, index: number) {
     super();
-    this.scriptSigAsm = scriptSigAsm;
-    this.scriptPubKeyAsm = scriptPubKeyAsm;
+    this.tx = tx;
+    this.index = index;
+  }
+
+  clear() {
+    this.stack = [];
+    this.executionStates = [true];
   }
 
   //load the scriptSigAsm into the stack as the input
-  initializeStack(): void {
-    if (this.scriptSigAsm) {
-      const scriptTokens = this.scriptSigAsm.split(" ");
+  execute(scrpt: string): string {
+    let script = `${scrpt}`; //copy the script
+    while (script.length != 0) {
+      const { script: newScript } = executor(this, script);
+      script = newScript;
     }
+    return this.top()!;
   }
 
   shouldExecute(): boolean {
-    return this.executionStates[this.executionStates.length - 1];
+    let ans = true;
+    for (const state of this.executionStates) {
+      ans = ans && state;
+    }
+    return ans;
   }
 
   onIf(condition: boolean) {
+    if (this.shouldExecute()) {
+      this.stack.pop();
+    }
     this.executionStates.push(condition);
   }
 

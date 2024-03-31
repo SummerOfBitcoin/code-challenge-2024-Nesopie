@@ -17,10 +17,6 @@ export const mine = (
   const version = Buffer.alloc(4);
   version.writeInt32LE(4);
 
-  // const witnessMerkleRootHash = merkleRoot([
-  //   ZEROS, //zeros are for the coinbase transaction
-  //   ...txs.map((tx) => sha256(sha256(txSerializer(tx).serializedWTx))),
-  // ]);
   const witnessMerkleRootHash = merkleRoot([
     WITNESS_RESERVED_VALUE,
     ...txs.map((tx) => reversify(tx.wtxid)),
@@ -39,7 +35,6 @@ export const mine = (
 
   const time = Buffer.alloc(4);
   time.writeUint32LE(Math.floor(Date.now() / 1000));
-  // const nbits = "1f00ffff";
   const nbits = Buffer.alloc(4);
   nbits.writeUint32LE(0x1f00ffff);
 

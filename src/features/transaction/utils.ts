@@ -1,6 +1,7 @@
+import { TransactionType } from "../../types";
 import { compactSize } from "../encoding/compactSize";
 import { Serializer } from "../encoding/serializer";
-import { Transaction } from "./transaction";
+import { Transaction } from "./components/transaction";
 
 const sizeMultiplier = (val: Buffer | string, multiplier: number) => {
   return val instanceof Buffer
@@ -60,4 +61,24 @@ export const calculateWeight = (tx: Transaction, isSegwit: boolean = false) => {
   nonSegwitWeight += sizeMultiplier(locktime, 4);
 
   return isSegwit ? nonSegwitWeight + segwitWeight : nonSegwitWeight;
+};
+
+export const getTransactionType = (tx: Transaction, index: number) => {
+  const input = tx.vin[index];
+  if (!input || !input.prevout) throw new Error("Invalid input");
+
+  const transactionType = input.prevout.scriptpubkey_type as TransactionType;
+  if (
+    transactionType === TransactionType.P2TR ||
+    transactionType === TransactionType.OP_RETURN ||
+    transactionType === TransactionType.P2WSH ||
+    transactionType === TransactionType.P2WPKH ||
+    transactionType === TransactionType.P2PKH
+  )
+    return transactionType;
+
+  if (!input.witness) return TransactionType.P2SH;
+
+  if (input.scriptsig.length === 46) return TransactionType.P2WPKH;
+  return TransactionType.P2WSH;
 };
