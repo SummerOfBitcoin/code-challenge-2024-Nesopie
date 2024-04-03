@@ -16,7 +16,7 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
 (async () => {
   const files = fs.readdirSync("./mempool");
   const outputFile = path.join(__dirname, "..", "output.txt");
-  let mempool: Transaction[] = [];
+  let txs: Transaction[] = [];
 
   const blockSize = 4 * 1e6;
 
@@ -31,12 +31,12 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
     for (const output of tx.vout) {
       transaction.addOutput(new Output(output));
     }
-    mempool.push(transaction);
+    txs.push(transaction);
   }
 
   let validTxs = [];
 
-  for (const tx of mempool) {
+  for (const tx of txs) {
     if (
       !ScriptValidator(tx) ||
       !LengthValidator(tx) ||
@@ -49,21 +49,46 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
     validTxs.push(tx);
   }
 
-  const txs = [];
+  //<txid + vout, txid of the spending tx>
+  const spentOutputs = new Map<string, string>();
+  const mempool = new Map<string, Transaction>();
 
-  validTxs.sort((txA, txB) => feePerByte(txB) - feePerByte(txA));
+  outer: for (const tx of validTxs) {
+    for (const input of tx.vin) {
+      if (spentOutputs.has(input.txid + input.vout)) {
+        //check if it has rbf enabled
+        if (tx.isBip125Replaceable) {
+          mempool.delete(tx.txid);
+        } else continue outer; //if it is not replaceable then it is not valid. The tx has already been confirmed and txs that spend the same input are ignored
+      }
+      spentOutputs.set(input.txid + input.vout, tx.txid);
+    }
+    mempool.set(tx.txid, tx);
+  }
+
+  txs = [];
+  const mempoolTxIds = new Set<string>(spentOutputs.values());
+  for (const txid of mempoolTxIds) {
+    const tx = mempool.get(txid);
+    if (tx) txs.push(tx);
+  }
+
+  let confirmedTxs = [];
+
+  txs.sort((txA, txB) => feePerByte(txB) - feePerByte(txA));
   let blockWeight = 0;
-  for (const tx of validTxs) {
+  for (const tx of txs) {
     if (tx.weight + blockWeight > blockSize) break;
 
-    txs.push(tx);
+    confirmedTxs.push(tx);
     blockWeight += tx.weight;
   }
 
   try {
     fs.unlinkSync(outputFile);
   } catch (err) {}
-  const { serializedBlock, blockHash, coinbaseTransaction } = mine(txs);
+  const { serializedBlock, blockHash, coinbaseTransaction } =
+    mine(confirmedTxs);
 
   fs.writeFileSync(outputFile, serializedBlock);
   fs.appendFileSync(outputFile, "\n");
@@ -71,7 +96,7 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
   fs.appendFileSync(outputFile, "\n");
   fs.appendFileSync(outputFile, coinbaseTransaction.txid);
   fs.appendFileSync(outputFile, "\n");
-  for (const tx of txs) {
+  for (const tx of confirmedTxs) {
     fs.appendFileSync(outputFile, tx.txid);
     fs.appendFileSync(outputFile, "\n");
   }
