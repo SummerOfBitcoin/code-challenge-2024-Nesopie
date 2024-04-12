@@ -1,18 +1,25 @@
 import { Input } from "./input";
 import { Output } from "./output";
 import { Serializer } from "../../encoding/serializer";
-import { hash160, hash256, reversify, sha256 } from "../../../utils";
+import {
+  hash160,
+  hash256,
+  reversify,
+  sha256,
+  taprootHash,
+} from "../../../utils";
 import { SigHash, TransactionType } from "../../../types";
 import cloneDeep from "lodash.clonedeep";
 import { Errors } from "../errors";
 import { calculateWeight } from "../utils";
-import { ZERO } from "../../../constants";
+import { TAP_SIG_HASH, ZERO } from "../../../constants";
 import { TEMPLATES } from "../../encoding/witnessTemplates";
 import { compactSize } from "../../encoding/compactSize";
-import {
-  collapseTextChangeRangesAcrossMultipleVersions,
-  getTsBuildInfoEmitOutputFilePath,
-} from "typescript";
+
+import { ECPairFactory } from "ecpair";
+import * as ecc from "tiny-secp256k1";
+
+const ECPair = ECPairFactory(ecc);
 
 //depending on static serializer methods, instead use dependency injection
 export class Transaction {
@@ -51,8 +58,8 @@ export class Transaction {
 
   signWith(
     inputIndex: number,
-    sighash: SigHash,
-    transactionType: TransactionType,
+    sighash: SigHash | 0x00,
+    transactionType: TransactionType, //can be moved internally?
     extFlag: number = 0x00,
     extension?: string
   ) {
@@ -88,7 +95,7 @@ export class Transaction {
     } else if (transactionType === TransactionType.P2TR) {
       let serializedWTx = "";
       const hashtype = Buffer.alloc(1);
-      hashtype.writeUint32LE(sighash, 0);
+      hashtype.writeUintLE(sighash, 0, 1);
 
       const nVersion = Buffer.alloc(4);
       nVersion.writeUint32LE(this.version, 0);
@@ -110,24 +117,36 @@ export class Transaction {
 
       let annex = undefined;
 
-      if (tx.vin[inputIndex].witness && tx.vin[inputIndex].witness.length > 1) {
-        const input = tx.vin[inputIndex];
-        const lastWitness = input.witness[input.witness.length - 1];
+      if (
+        this.vin[inputIndex].witness &&
+        this.vin[inputIndex].witness!.length > 1
+      ) {
+        const input = this.vin[inputIndex];
+        const lastWitness = input.witness![input.witness!.length - 1];
 
         if (lastWitness.startsWith("50")) annex = lastWitness;
       }
       const annexBit = Buffer.alloc(1);
-      annexBit.writeUint8(annex ? 1 : 0, 0);
+      annexBit.writeUintLE(annex ? 1 : 0, 0, 1);
 
       const extendBit = Buffer.alloc(1);
-      extendBit.writeUint8(extension ? 1 : 0, 0);
+      extendBit.writeUintLE(extension ? 1 : 0, 0, 1);
 
       const spendType = Buffer.alloc(1);
-      spendType.writeUint8(
-        (extFlag + extendBit.readUint8(0)) * 2 + annexBit.readUint8(0)
+      spendType.writeUintLE(
+        (extFlag + extendBit.readUintLE(0, 1)) * 2 + annexBit.readUintLE(0, 1),
+        0,
+        1
       );
 
-      if ((sighash & SigHash.ANYONE_CAN_PAY) === SigHash.ANYONE_CAN_PAY) {
+      let shaAnnex = "";
+      if (annex) {
+        shaAnnex = sha256(
+          compactSize(BigInt(annex.length / 2)).toString("hex") + annex
+        );
+      }
+
+      if (!((sighash & SigHash.ANYONE_CAN_PAY) === SigHash.ANYONE_CAN_PAY)) {
         for (const input of this.vin) {
           prevouts += reversify(input.txid);
           const prevoutVout = Buffer.alloc(4);
@@ -140,30 +159,30 @@ export class Transaction {
           amount.writeBigInt64LE(BigInt(input.prevout!.value), 0);
           amounts += amount.toString("hex");
 
+          scripts += compactSize(
+            BigInt(input.prevout!.scriptpubkey.length / 2)
+          ).toString("hex");
           scripts += input.prevout?.scriptpubkey;
 
           const sequence = Buffer.alloc(4);
           sequence.writeUint32LE(input.sequence, 0);
           sequences += sequence.toString("hex");
         }
+        shaPrevouts = sha256(prevouts);
+        shaAmounts = sha256(amounts);
+        shaScripts = sha256(scripts);
+        shaSequences = sha256(sequences);
       }
-
-      shaPrevouts = hash256(prevouts);
-      shaAmounts = hash256(amounts);
-      shaScripts = hash256(scripts);
-      shaSequences = hash256(sequences);
 
       let outputs = "";
       let shaOutputs = "";
 
       if ((sighash & 0x03) < 2 || (sighash & 0x02) > 3) {
         for (const output of this.vout) {
-          const amount = Buffer.alloc(8);
-          amount.writeBigInt64LE(BigInt(output.value), 0);
-          outputs += amount.toString("hex") + output.scriptpubkey;
+          outputs += output.serialize();
         }
 
-        shaOutputs = hash256(outputs);
+        shaOutputs = sha256(outputs);
       }
 
       let inputData = "";
@@ -180,6 +199,9 @@ export class Transaction {
         amount.writeBigInt64LE(BigInt(input.prevout!.value), 0);
         inputData += amount.toString("hex");
 
+        inputData += compactSize(
+          BigInt(input.prevout!.scriptpubkey.length / 2)
+        ).toString("hex");
         inputData += input.prevout!.scriptpubkey;
 
         const sequence = Buffer.alloc(4);
@@ -194,14 +216,28 @@ export class Transaction {
 
       let outputData = "";
       let shaoutputData = "";
-      if ((sighash & 0x03) === SigHash.SINGLE) {
-        const amount = Buffer.alloc(8);
-        amount.writeBigInt64LE(BigInt(this.vout[inputIndex].value), 0);
-
-        outputData +=
-          amount.toString("hex") + this.vout[inputIndex].scriptpubkey;
-        shaoutputData = hash256(outputData);
+      if ((sighash & SigHash.SINGLE) === SigHash.SINGLE) {
+        outputData = this.vout[inputIndex].serialize();
+        shaoutputData = sha256(outputData);
       }
+
+      serializedWTx += hashtype.toString("hex");
+      serializedWTx += nVersion.toString("hex");
+      serializedWTx += nLocktime.toString("hex");
+
+      serializedWTx += shaPrevouts;
+      serializedWTx += shaAmounts;
+      serializedWTx += shaScripts;
+      serializedWTx += shaSequences;
+      serializedWTx += shaOutputs;
+
+      serializedWTx += spendType.toString("hex");
+      serializedWTx += inputData;
+
+      serializedWTx += shaAnnex;
+      serializedWTx += shaoutputData;
+
+      return serializedWTx;
     }
     let serializedWTx = "";
 
@@ -345,7 +381,7 @@ export class Transaction {
 
   get weight() {
     if (this._weight) return this._weight;
-    const weight = calculateWeight(this, this.isSegwit);
+    const weight = calculateWeight(this);
     this._weight = weight;
     return this._weight;
   }
@@ -357,193 +393,4 @@ export class Transaction {
     this._serializedTx = undefined;
     this._serializedWTx = undefined;
   }
-}
-
-const tx = {
-  version: 2,
-  locktime: 0,
-  vin: [
-    {
-      txid: "5e6197dbc25abd3a9b2af9a8e55458a9b7b7a85c4a13cfdadb9e187ce9334588",
-      vout: 3,
-      prevout: {
-        scriptpubkey:
-          "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_asm:
-          "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_type: "v1_p2tr",
-        scriptpubkey_address:
-          "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-        value: 600,
-      },
-      scriptsig: "",
-      scriptsig_asm: "",
-      witness: [
-        "42a0928529ab59bfc67993eb2cfb1d72911fed3e8de4c560c2eab4a001cebb214401dadd2c0493efc5bdc024e9294d17dd3734cb6fc0410550da4a04186abdc4",
-      ],
-      is_coinbase: false,
-      sequence: 4294967295,
-    },
-    {
-      txid: "f9f2067be86bf9a33b82c50bfee830047811d24f94c719a3c3e5285f210f086f",
-      vout: 5,
-      prevout: {
-        scriptpubkey:
-          "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_asm:
-          "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_type: "v1_p2tr",
-        scriptpubkey_address:
-          "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-        value: 600,
-      },
-      scriptsig: "",
-      scriptsig_asm: "",
-      witness: [
-        "b9d19c7160d923eec314c51881957fa6027da28b46cf835fed08dc80dbe94066263d962e882e43d63294ca0da9f1f26607b9693d3680f1d01352ddbcbf948828",
-      ],
-      is_coinbase: false,
-      sequence: 4294967295,
-    },
-    {
-      txid: "c89998a53471308b40f778325b8bd11eb78fa5b463138be2e9b9c793bd1e9c30",
-      vout: 1,
-      prevout: {
-        scriptpubkey:
-          "512025a6cb1be46f9b558e86f62db73cf12dcb883450b513669c72b1799be3d719e5",
-        scriptpubkey_asm:
-          "OP_PUSHNUM_1 OP_PUSHBYTES_32 25a6cb1be46f9b558e86f62db73cf12dcb883450b513669c72b1799be3d719e5",
-        scriptpubkey_type: "v1_p2tr",
-        scriptpubkey_address:
-          "bc1pyknvkxlyd7d4tr5x7ckmw0839h9csdzsk5fkd8rjk9uehc7hr8jspctyvw",
-        value: 1521924,
-      },
-      scriptsig: "",
-      scriptsig_asm: "",
-      witness: [
-        "612df80a166f44d3e17eef77386a8c95fa04535bb8b104ea0219f5406a5cfe826ecb9bea8b101de713df12dd46f103ddd5042ad041627868fa51c93b1f576f2683",
-      ],
-      is_coinbase: false,
-      sequence: 4294967295,
-    },
-    {
-      txid: "dfa57658052ba62cf2940160c6254e9b09dc6b66c7c0ceb27e1fb3335697b213",
-      vout: 0,
-      prevout: {
-        scriptpubkey:
-          "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_asm:
-          "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_type: "v1_p2tr",
-        scriptpubkey_address:
-          "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-        value: 1775944,
-      },
-      scriptsig: "",
-      scriptsig_asm: "",
-      witness: [
-        "d44b3705971bb00c4544096ec9317d51cf38c0fdcda0306827b2c1ca3745acde15bc592c1fdcff8d20eb23095ca5a4b4aef8b4ab87048cf558b22c6f1f179fbc",
-      ],
-      is_coinbase: false,
-      sequence: 4294967295,
-    },
-    {
-      txid: "46e8e365435112ea61d4a031524a70d0b0ed436d2add67a23bb759a755aba82f",
-      vout: 2,
-      prevout: {
-        scriptpubkey:
-          "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_asm:
-          "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-        scriptpubkey_type: "v1_p2tr",
-        scriptpubkey_address:
-          "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-        value: 418446,
-      },
-      scriptsig: "",
-      scriptsig_asm: "",
-      witness: [
-        "bf450894077142b659dcafbb0b39a54f7857179fa3391ce90170a52ba885cc87be04f3029000bc13aa0851dc7abdfc772efd2e434d7c360ad2d66e39c3fc4e8e",
-      ],
-      is_coinbase: false,
-      sequence: 4294967295,
-    },
-  ],
-  vout: [
-    {
-      scriptpubkey:
-        "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_asm:
-        "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_type: "v1_p2tr",
-      scriptpubkey_address:
-        "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-      value: 1200,
-    },
-    {
-      scriptpubkey:
-        "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_asm:
-        "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_type: "v1_p2tr",
-      scriptpubkey_address:
-        "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-      value: 1521924,
-    },
-    {
-      scriptpubkey: "0014392f28fde2dcf2cccbd05885e22d7b823fb2b5d9",
-      scriptpubkey_asm:
-        "OP_0 OP_PUSHBYTES_20 392f28fde2dcf2cccbd05885e22d7b823fb2b5d9",
-      scriptpubkey_type: "v0_p2wpkh",
-      scriptpubkey_address: "bc1q8yhj3l0zmnevej7stzz7yttmsglm9dwehp26wh",
-      value: 1824788,
-    },
-    {
-      scriptpubkey: "a914ea6b832a05c6ca578baa3836f3f25553d41068a587",
-      scriptpubkey_asm:
-        "OP_HASH160 OP_PUSHBYTES_20 ea6b832a05c6ca578baa3836f3f25553d41068a5 OP_EQUAL",
-      scriptpubkey_type: "p2sh",
-      scriptpubkey_address: "3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ",
-      value: 7609,
-    },
-    {
-      scriptpubkey:
-        "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_asm:
-        "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_type: "v1_p2tr",
-      scriptpubkey_address:
-        "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-      value: 600,
-    },
-    {
-      scriptpubkey:
-        "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_asm:
-        "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_type: "v1_p2tr",
-      scriptpubkey_address:
-        "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-      value: 600,
-    },
-    {
-      scriptpubkey:
-        "51206738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_asm:
-        "OP_PUSHNUM_1 OP_PUSHBYTES_32 6738d5147ddf7d8d7737beea5615e63439cc6759385180d9b2abde2165d07b12",
-      scriptpubkey_type: "v1_p2tr",
-      scriptpubkey_address:
-        "bc1pvuud29rama7c6aehhm49v90xxsuuce6e8pgcpkdj400zzews0vfqfs2xvd",
-      value: 352123,
-    },
-  ],
-};
-
-const transaction = new Transaction(tx.version, tx.locktime);
-for (const input of tx.vin) {
-  transaction.addInput(new Input(input));
-}
-
-for (const output of tx.vout) {
-  transaction.addOutput(new Output(output));
 }

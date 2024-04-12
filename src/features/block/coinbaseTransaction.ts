@@ -3,10 +3,6 @@ import { MAX_VALUE, WITNESS_RESERVED_VALUE } from "../../constants";
 import { compactSize } from "../encoding/compactSize";
 import { Input, Output, Transaction } from "../transaction";
 
-// export const ZEROS =
-//   "0000000000000000000000000000000000000000000000000000000000000000";
-// const MAX_VALUE = 0xffffffff;
-// const height = 538403;
 const blockReward = 1250000000;
 
 export const generateCoinbaseTransaction = (

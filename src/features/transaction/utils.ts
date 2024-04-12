@@ -9,7 +9,7 @@ const sizeMultiplier = (val: Buffer | string, multiplier: number) => {
     : (val.length / 2) * multiplier;
 };
 
-export const calculateWeight = (tx: Transaction, isSegwit: boolean = false) => {
+export const calculateWeight = (tx: Transaction) => {
   let nonSegwitWeight = 0;
 
   const version = Buffer.alloc(4);
@@ -60,7 +60,7 @@ export const calculateWeight = (tx: Transaction, isSegwit: boolean = false) => {
   locktime.writeUint32LE(tx.locktime, 0);
   nonSegwitWeight += sizeMultiplier(locktime, 4);
 
-  return isSegwit ? nonSegwitWeight + segwitWeight : nonSegwitWeight;
+  return tx.isSegwit ? nonSegwitWeight + segwitWeight : nonSegwitWeight;
 };
 
 export const getTransactionType = (tx: Transaction, index: number) => {

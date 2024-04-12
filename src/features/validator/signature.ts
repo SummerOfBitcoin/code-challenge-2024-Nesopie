@@ -1,10 +1,19 @@
 import { SigHash, TransactionType } from "../../types";
 import { Transaction } from "../transaction";
-import { hash160, hash256, sha256 } from "../../utils";
+import { hash160, hash256, sha256, taprootHash } from "../../utils";
 import * as asn1js from "asn1js";
 
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
+import { getNextNBytes } from "../script/utils";
+import {
+  SECP256K1_ORDER,
+  TAP_BRANCH,
+  TAP_LEAF,
+  TAP_SIG_HASH,
+  TAP_TWEAK,
+} from "../../constants";
+import { compactSize } from "../encoding/compactSize";
 
 const ECPair = ECPairFactory(ecc);
 
@@ -55,7 +64,7 @@ export const signatureValidator = (tx: Transaction): boolean => {
         const sighash = extractSighashFromSignature(derEncodedSignature);
         const signature = signatureFromDER(derEncodedSignature);
 
-        const ecpair = ECPair.fromPublicKey(Buffer.from(pubkey, "hex")); //p2wpkh pubkeys must be compressed
+        const ecpair = ECPair.fromPublicKey(Buffer.from(pubkey, "hex"));
 
         const msg = tx.signWith(i, sighash, TransactionType.P2PKH);
         const hash = sha256(sha256(msg));
@@ -122,8 +131,86 @@ export const signatureValidator = (tx: Transaction): boolean => {
         } else if (input.scriptsig.length === 70) continue;
         else return false;
       }
+
+      case TransactionType.P2TR: {
+        if (!input.prevout.scriptpubkey) return false;
+
+        const [_, tweakedPubkey] = getNextNBytes(input.prevout.scriptpubkey, 2);
+
+        if (!input.witness) return false;
+
+        const isAnnexPresent =
+          input.witness.length > 1 &&
+          input.witness[input.witness.length - 1].startsWith("50")
+            ? 1
+            : 0;
+        if (input.witness.length <= 2) {
+          //key path spending
+          const signature =
+            input.witness[input.witness.length - 1 - isAnnexPresent];
+          const sighash =
+            signature.length > 128
+              ? extractSighashFromSignature(signature)
+              : 0x00;
+          const msg = tx.signWith(i, sighash, TransactionType.P2TR, 0);
+          const taprootHashResult = taprootHash(TAP_SIG_HASH, "00" + msg);
+          const ecpair = ECPair.fromPublicKey(
+            Buffer.from("02" + tweakedPubkey, "hex")
+          );
+
+          const valid = ecpair.verifySchnorr(
+            Buffer.from(taprootHashResult, "hex"),
+            Buffer.from(signature.slice(0, 128), "hex")
+          );
+
+          if (!valid) console.log(i);
+        } else {
+          const script =
+            input.witness[input.witness.length - 2 - isAnnexPresent]; //assuming that we took out the annex
+          const controlBlock =
+            input.witness[input.witness.length - 1 - isAnnexPresent];
+          const controlBlockLength = controlBlock.length / 2;
+
+          if ((controlBlockLength - 33) % 32 !== 0) {
+            return false;
+          }
+
+          const m = (controlBlockLength - 33) / 32;
+
+          const p = controlBlock.slice(2, 66);
+
+          const v = (parseInt(controlBlock.slice(0, 2), 16) & 0xfe).toString(
+            16
+          );
+
+          const k = [];
+          k.push(
+            taprootHash(
+              TAP_LEAF,
+              v +
+                compactSize(BigInt(script.length / 2)).toString("hex") +
+                script
+            )
+          );
+
+          for (let i = 0; i < m; i++) {
+            const e = controlBlock.slice((33 + 32 * i) * 2, (65 + 32 * i) * 2);
+            const branches: [string, string] = e < k[i] ? [e, k[i]] : [k[i], e];
+
+            k.push(taprootHash(TAP_BRANCH, branches[0] + branches[1]));
+          }
+
+          const t = taprootHash(TAP_TWEAK, p + k[m]);
+          if (Buffer.from(t, "hex").compare(SECP256K1_ORDER) > 0) return false;
+
+          const P = ecc.xOnlyPointFromPoint(Buffer.from("02" + p, "hex"));
+          const Q = ecc.xOnlyPointAddTweak(P, Buffer.from(t, "hex"))!;
+
+          if (Buffer.from(Q.xOnlyPubkey).toString("hex") !== tweakedPubkey)
+            return false;
+        }
+      }
     }
-    // }
   }
 
   return true;

@@ -1,6 +1,11 @@
 import * as crypto from "crypto";
 import { OP_CODES } from "./features/script/op_codes";
 
+export const taprootHash = (str: string, byteArray: string) => {
+  const tag = crypto.createHash("sha256").update(str).digest("hex");
+  return sha256(tag + tag + byteArray);
+};
+
 export const hash160 = (str: string) => {
   return crypto
     .createHash("ripemd160")
@@ -20,7 +25,7 @@ export const sha256 = (str: string) => {
 };
 
 export const asmToHex = (asm: string) => {
-  const tokens = asm.split(" ") as OP_CODES[];
+  const tokens = asm.split(" ") as (keyof typeof OP_CODES)[];
   return [...new Array(tokens.length)]
     .map((_, index) => OP_CODES[tokens[index]])
     .map((token, index) => (!token ? tokens[index] : token))

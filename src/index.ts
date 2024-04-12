@@ -32,6 +32,7 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
       transaction.addOutput(new Output(output));
     }
     txs.push(transaction);
+    // break;
   }
 
   let validTxs = [];
@@ -50,55 +51,55 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
   }
 
   //<txid + vout, txid of the spending tx>
-  const spentOutputs = new Map<string, string>();
-  const mempool = new Map<string, Transaction>();
+  // const spentOutputs = new Map<string, string>();
+  // const mempool = new Map<string, Transaction>();
 
-  outer: for (const tx of validTxs) {
-    for (const input of tx.vin) {
-      if (spentOutputs.has(input.txid + input.vout)) {
-        //check if it has rbf enabled
-        if (tx.isBip125Replaceable) {
-          mempool.delete(tx.txid);
-        } else continue outer; //if it is not replaceable then it is not valid. The tx has already been confirmed and txs that spend the same input are ignored
-      }
-      spentOutputs.set(input.txid + input.vout, tx.txid);
-    }
-    mempool.set(tx.txid, tx);
-  }
+  // outer: for (const tx of validTxs) {
+  //   for (const input of tx.vin) {
+  //     if (spentOutputs.has(input.txid + input.vout)) {
+  //       //check if it has rbf enabled
+  //       if (tx.isBip125Replaceable) {
+  //         mempool.delete(tx.txid);
+  //       } else continue outer; //if it is not replaceable then it is not valid. The tx has already been confirmed and txs that spend the same input are ignored
+  //     }
+  //     spentOutputs.set(input.txid + input.vout, tx.txid);
+  //   }
+  //   mempool.set(tx.txid, tx);
+  // }
 
-  txs = [];
-  const mempoolTxIds = new Set<string>(spentOutputs.values());
-  for (const txid of mempoolTxIds) {
-    const tx = mempool.get(txid);
-    if (tx) txs.push(tx);
-  }
+  // txs = [];
+  // const mempoolTxIds = new Set<string>(spentOutputs.values());
+  // for (const txid of mempoolTxIds) {
+  //   const tx = mempool.get(txid);
+  //   if (tx) txs.push(tx);
+  // }
 
-  let confirmedTxs = [];
+  // let confirmedTxs = [];
 
-  txs.sort((txA, txB) => feePerByte(txB) - feePerByte(txA));
-  let blockWeight = 0;
-  for (const tx of txs) {
-    if (tx.weight + blockWeight > blockSize) break;
+  // txs.sort((txA, txB) => feePerByte(txB) - feePerByte(txA));
+  // let blockWeight = 0;
+  // for (const tx of txs) {
+  //   if (tx.weight + blockWeight > blockSize) break;
 
-    confirmedTxs.push(tx);
-    blockWeight += tx.weight;
-  }
+  //   confirmedTxs.push(tx);
+  //   blockWeight += tx.weight;
+  // }
 
-  try {
-    fs.unlinkSync(outputFile);
-  } catch (err) {}
-  const { serializedBlock, blockHash, coinbaseTransaction } =
-    mine(confirmedTxs);
+  // try {
+  //   fs.unlinkSync(outputFile);
+  // } catch (err) {}
+  // const { serializedBlock, blockHash, coinbaseTransaction } =
+  //   mine(confirmedTxs);
 
-  fs.writeFileSync(outputFile, serializedBlock);
-  fs.appendFileSync(outputFile, "\n");
-  fs.appendFileSync(outputFile, coinbaseTransaction.serializedWTx);
-  fs.appendFileSync(outputFile, "\n");
-  fs.appendFileSync(outputFile, coinbaseTransaction.txid);
-  fs.appendFileSync(outputFile, "\n");
-  for (const tx of confirmedTxs) {
-    fs.appendFileSync(outputFile, tx.txid);
-    fs.appendFileSync(outputFile, "\n");
-  }
-  console.log(fs.readFileSync(outputFile, "utf8").split("\n").length);
+  // fs.writeFileSync(outputFile, serializedBlock);
+  // fs.appendFileSync(outputFile, "\n");
+  // fs.appendFileSync(outputFile, coinbaseTransaction.serializedWTx);
+  // fs.appendFileSync(outputFile, "\n");
+  // fs.appendFileSync(outputFile, coinbaseTransaction.txid);
+  // fs.appendFileSync(outputFile, "\n");
+  // for (const tx of confirmedTxs) {
+  //   fs.appendFileSync(outputFile, tx.txid);
+  //   fs.appendFileSync(outputFile, "\n");
+  // }
+  // console.log(fs.readFileSync(outputFile, "utf8").split("\n").length);
 })();

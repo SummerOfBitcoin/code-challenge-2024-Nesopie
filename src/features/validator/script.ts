@@ -1,9 +1,7 @@
-import { SigHash, TransactionType } from "../../types";
-import { hash256 } from "../../utils";
-import { extractRSFromSignature } from "../encoding/serializer";
+import { TransactionType } from "../../types";
 import { FALSE } from "../script/constants";
 import { ScriptStack } from "../script/stack";
-import { Input, Output, Transaction } from "../transaction";
+import { Transaction } from "../transaction";
 
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";

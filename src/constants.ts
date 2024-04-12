@@ -8,3 +8,13 @@ export const WITNESS_RESERVED_VALUE =
   "0000000000000000000000000000000000000000000000000000000000000000";
 
 export const MAX_VALUE = 0xffffffff;
+
+export const TAP_SIG_HASH = "TapSighash";
+export const TAP_LEAF = "TapLeaf";
+export const TAP_BRANCH = "TapBranch";
+export const TAP_TWEAK = "TapTweak";
+
+export const SECP256K1_ORDER = Buffer.from(
+  "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+  "hex"
+);
