@@ -12,7 +12,9 @@
   "dependencies": {
     "@bitcoinerlab/secp256k1": "^1.1.1",
     "asn1js": "^3.0.5",
+    "bech32": "^2.0.0",
     "bitcoinjs-lib": "^6.1.5",
+    "bs58check": "^3.0.1",
     "ecpair": "^2.1.0",
     "lodash.clonedeep": "^4.5.0",
     "tiny-secp256k1": "^2.2.3",

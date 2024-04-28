@@ -17,7 +17,7 @@ export const totalFee = (txs: Transaction[]) => {
   return inputValues - outputValues;
 };
 
-export const feePerByte = (tx: Transaction) => {
+export const calculateFee = (tx: Transaction) => {
   let fee = 0;
   for (const input of tx.vin) {
     if (!input.prevout) continue;
@@ -28,5 +28,5 @@ export const feePerByte = (tx: Transaction) => {
     fee -= output.value;
   }
 
-  return fee / tx.weight;
+  return fee;
 };

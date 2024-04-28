@@ -18,6 +18,7 @@ import { compactSize } from "../../encoding/compactSize";
 
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
+import { calculateFee } from "../../block/fee";
 
 const ECPair = ECPairFactory(ecc);
 
@@ -31,6 +32,8 @@ export class Transaction {
   private _hashPrevouts: string | undefined;
   private _hashSequence: string | undefined;
   private _hashOutputs: string | undefined;
+  private _fee: number | undefined;
+  private _feeRate: number | undefined;
 
   version: number;
   locktime: number;
@@ -384,6 +387,20 @@ export class Transaction {
     const weight = calculateWeight(this);
     this._weight = weight;
     return this._weight;
+  }
+
+  get fee() {
+    if (this._fee) return this._fee;
+    const fee = calculateFee(this);
+    this._fee = fee;
+    return this._fee;
+  }
+
+  get feeRate() {
+    if (this._feeRate) return this._feeRate;
+    const feeRate = this.fee / this.weight;
+    this._feeRate = feeRate;
+    return this._feeRate;
   }
 
   private resetState() {

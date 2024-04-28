@@ -8,6 +8,8 @@ export class Output {
   scriptpubkey_type: string;
   scriptpubkey_address?: string;
   value: number;
+
+  private _serialized: string | undefined;
   constructor(outputConfig: TxOut) {
     this.scriptpubkey = outputConfig.scriptpubkey;
     this.scriptpubkey_asm = outputConfig.scriptpubkey_asm;
@@ -17,6 +19,10 @@ export class Output {
   }
 
   serialize() {
-    return Serializer.serializeOutput(this);
+    if (this._serialized) {
+      return this._serialized;
+    }
+    this._serialized = Serializer.serializeOutput(this);
+    return this._serialized;
   }
 }

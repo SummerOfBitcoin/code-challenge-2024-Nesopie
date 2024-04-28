@@ -1,17 +1,8 @@
 import * as fs from "fs";
-// import { mempool } from "./store/mempool";
-import { utxos } from "./store/utxos";
-import { LengthValidator } from "./features/validator/length";
-import { HashValidator } from "./features/validator/hash";
-import { reversify, sha256 } from "./utils";
-import { feePerByte } from "./features/block/fee";
 import { mine } from "./features/block/mine";
 import * as path from "path";
-import { signatureValidator } from "./features/validator/signature";
 import { Input, Output, Transaction, Tx } from "./features/transaction";
-import { Transaction as BitcoinTx } from "bitcoinjs-lib";
-import { ScriptValidator } from "./features/validator/script";
-import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
+import { Validator } from "./features/validator/validator";
 
 (async () => {
   const files = fs.readdirSync("./mempool");
@@ -38,12 +29,7 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
   let validTxs = [];
 
   for (const tx of txs) {
-    if (
-      !ScriptValidator(tx) ||
-      !LengthValidator(tx) ||
-      !HashValidator(tx) ||
-      !signatureValidator(tx)
-    ) {
+    if (!Validator.validate(tx)) {
       console.log(tx);
       continue;
     }
@@ -76,7 +62,7 @@ import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
 
   let confirmedTxs = [];
 
-  txs.sort((txA, txB) => feePerByte(txB) - feePerByte(txA));
+  txs.sort((txA, txB) => txB.feeRate - txA.feeRate);
   let blockWeight = 0;
   for (const tx of txs) {
     if (tx.weight + blockWeight > blockSize) break;

@@ -11,9 +11,15 @@ dependencies:
   asn1js:
     specifier: ^3.0.5
     version: 3.0.5
+  bech32:
+    specifier: ^2.0.0
+    version: 2.0.0
   bitcoinjs-lib:
     specifier: ^6.1.5
     version: 6.1.5
+  bs58check:
+    specifier: ^3.0.1
+    version: 3.0.1
   ecpair:
     specifier: ^2.1.0
     version: 2.1.0
