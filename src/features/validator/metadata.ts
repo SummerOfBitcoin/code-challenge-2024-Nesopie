@@ -75,5 +75,7 @@ export const MetadataValidator = (tx: Transaction) => {
     }
   }
 
+  if (tx.fee < 0) return false;
+
   return true;
 };

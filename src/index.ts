@@ -23,7 +23,6 @@ import { Validator } from "./features/validator/validator";
       transaction.addOutput(new Output(output));
     }
     txs.push(transaction);
-    // break;
   }
 
   let validTxs = [];
