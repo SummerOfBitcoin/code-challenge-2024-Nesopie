@@ -45,11 +45,10 @@ export class ScriptStack extends Stack<string> {
   }
 
   shouldExecute(): boolean {
-    let ans = true;
     for (const state of this.executionStates) {
-      ans = ans && state;
+      if (!state) return false;
     }
-    return ans;
+    return true;
   }
 
   onIf(condition: boolean) {
